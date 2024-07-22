@@ -16,10 +16,14 @@ CAMERA_PANNING_BORDER: dict = {'left': 100, 'right': 100, 'top': 100, 'bottom': 
 MOUSE_PANNING_SPEED: float = 10.0
 KEY_PANNING_SPEED: float = 10.0
 
-ZOOM_MAX: float = 2.0
-ZOOM_MIN: float = 0.5
+ZOOM_MAX: float = 5.0
+ZOOM_MIN: float = 0.2
 MOUSE_ZOOM_SPEED: float = 1.0
 KEY_ZOOM_SPEED: float = 0.2
+
+# BUTTON SETTING
+BUTTON_BORDER_COLOR: str = "YELLOW"
+BUTTON_BORDER_THICKNESS: int = 5
 
 # COLOR SETTING
 GRID_COLOR: str = "WHITE"
@@ -70,26 +74,26 @@ class Camera:
     def movement(self, mouse_position: Vector2):
         # Mouse pressed panning
         mouses = pygame.mouse.get_pressed()
-        if mouses[0]:
-            self.offset += self.start_panning - mouse_position
+        if mouses[2]:
+            self.offset += (self.start_panning - mouse_position) // self.scale
             self.start_panning = mouse_position
 
-        # Mouse border panning
-        if pygame.mouse.get_focused():
-            if mouse_position.x < self.__camera_border.left:
-                self.__direction.x = -1
-            elif mouse_position.x > self.__camera_border.right:
-                self.__direction.x = 1
-            else:
-
-                self.__direction.x = 0
-            if mouse_position.y < self.__camera_border.top:
-                self.__direction.y = -1
-            elif mouse_position.y > self.__camera_border.bottom:
-                self.__direction.y = 1
-            else:
-                self.__direction.y = 0
-            self.offset += self.__direction * MOUSE_PANNING_SPEED
+        # # Mouse border panning
+        # if pygame.mouse.get_focused():
+        #     if mouse_position.x < self.__camera_border.left:
+        #         self.__direction.x = -1
+        #     elif mouse_position.x > self.__camera_border.right:
+        #         self.__direction.x = 1
+        #     else:
+        #
+        #         self.__direction.x = 0
+        #     if mouse_position.y < self.__camera_border.top:
+        #         self.__direction.y = -1
+        #     elif mouse_position.y > self.__camera_border.bottom:
+        #         self.__direction.y = 1
+        #     else:
+        #         self.__direction.y = 0
+        #     self.offset += self.__direction * MOUSE_PANNING_SPEED
 
         # Key pressed panning
         keys = pygame.key.get_pressed()
@@ -171,7 +175,7 @@ class Block(Sprite):
         return cloned_block
 
     def update(self):
-        self.rect.topleft = WorldToScreenCoordinate(self.position * PIXEL)
+        self.rect.topleft = WorldToScreenCoordinate(self.position)
         self.image = pygame.transform.scale(self.original_image, (PIXEL * camera.scale, PIXEL * camera.scale))
 
 Grass = Block('Images/Block_Images/Grass_001.png')
@@ -181,22 +185,80 @@ Grass.id = 1
 
 
 # ------------------------------------------------------------------------ #
-#                                  MAP                                     #
+#                                 EDITOR                                   #
 # ------------------------------------------------------------------------ #
+
+# class Button(Sprite):
+#     def __init__(self, size:tuple[int, int], pos:tuple[int, int], value = None):
+#         super().__init__()
+#         self.size: tuple[int, int] = size
+#         self.image: pygame.Surface = pygame.Surface(size)
+#         self.image.fill('WHITE')
+#         self.rect: pygame.Rect = self.image.get_rect(topleft=pos)
+#
+#         self.visible: bool = True
+#         self.value = value
+#
+#     def is_click(self):
+#         if not self.visible:
+#             return False
+#
+#         if pygame.Rect.collidepoint(self.rect, pygame.mouse.get_pos()):
+#             return True
+#         else:
+#             return False
+#
+# class ButtonScreen:
+#     def __init__(self):
+#         brush_type_button1 = Button((50, 50), (0, 0), 'pen')
+#         brush_type_button2 = Button((50, 50), (0, 50), 'fill')
+#         brush_type_button3 = Button((50, 50), (0, 100), 'copy')
+#         brush_type_button4 = Button((50, 50), (0, 150), 'erase')
+#         self.brush_type_group = Group(brush_type_button1,
+#                                       brush_type_button2,
+#                                       brush_type_button3,
+#                                       brush_type_button4)
+#
+#     def draw(self):
+#         self.brush_type_group.draw(camera.screen)
+#
+#     def get_current_button(self):
+#         button: Button
+#         for button in self.brush_type_group:
+#             if button.is_click():
+#                 return button.value
+
 class WorldEditor:
     def __init__(self, world_size:tuple[int, int]):
         self.world_size: tuple[int, int] = world_size
         self.__base_world_index: np.ndarray = np.zeros(world_size)
 
-        self.ground_sprite_group: Group = Group()
-        self.ground_sprite_dict: dict = {}
+        self.background_sprite_group: Group = Group()
+        self.background_sprite_dict: dict = {}
 
-    def ScreenToWorldIndex(self, position) -> (tuple[int, int] | tuple[None, None]):
+    def GetCurrentWorldIndex(self, position) -> (tuple[int, int] | tuple[None, None]):
         x, y = ScreenToWorldCoordinate(position) // PIXEL
         # Return None if the index is out of range of the grid_indices
         if (x < 0 or x > self.__base_world_index.shape[0] - 1) or (y < 0 or y > self.__base_world_index.shape[1] - 1):
             return None, None
         return int(x), int(y)
+
+    def paint(self, index, obj):
+        x, y = index
+
+        # Return if the index is out of range of the grid_indices
+        if (x < 0 or x > self.__base_world_index.shape[0] - 1) or (y < 0 or y > self.__base_world_index.shape[1] - 1):
+            return
+
+        if isinstance(obj, Block):
+            if str(index) in self.background_sprite_dict:
+                existing_block = self.background_sprite_dict[str(index)]
+                existing_block.kill()
+
+            new_block = obj.copy()
+            new_block.position = Vector2((x, y)) * PIXEL
+            self.background_sprite_group.add(new_block)
+            self.background_sprite_dict.update({str(index): new_block})
 
     def draw_grid(self):
         x_line = np.linspace(0, self.world_size[0], self.world_size[0] + 1)
@@ -209,36 +271,102 @@ class WorldEditor:
                              WorldToScreenCoordinate((x_line[-1] * PIXEL, y * PIXEL)))
 
     def draw_sprites(self):
-        self.ground_sprite_group.update()
+        self.background_sprite_group.update()
+        self.background_sprite_group.draw(camera.screen)
 
-        self.ground_sprite_group.draw(camera.screen)
+editor = WorldEditor((64, 64))
 
-    def paint(self, position, obj):
-        x, y = self.ScreenToWorldIndex(position)
-        index = (x, y)
-        if index == (None, None):
+class BrushTool:
+    def __init__(self):
+        dot1 = np.array([
+            [0, 1, 0],
+            [1, 1, 1],
+            [0, 1, 0],
+        ])
+        dot2 = np.array([
+            [0, 0, 1, 0, 0],
+            [0, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 0],
+            [0, 0, 1, 0, 0],
+        ])
+        dot3 = np.array([
+            [0, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 0],
+        ])
+        dot4 = np.array([
+            [0, 0, 1, 1, 1, 0, 0],
+            [0, 1, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 1, 0],
+            [0, 0, 1, 1, 1, 0, 0],
+        ])
+        dot5 = np.array([
+            [0, 0, 0, 1, 1, 1, 0, 0, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 0, 0, 1, 1, 1, 0, 0, 0],
+        ])
+        dot6 = np.array([
+            [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+            [0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+            [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        ])
+
+        self.dot_list = [dot1, dot2, dot3, dot4, dot5, dot6]
+        self.current_dot_size: int = 1
+
+    def pen_draw(self, mouse_position):
+        index_center = editor.GetCurrentWorldIndex(mouse_position)
+
+        if index_center == (None, None):
             return
 
-        if isinstance(obj, Block):
-            if str(index) in self.ground_sprite_dict:
-                existing_block = self.ground_sprite_dict[str(index)]
-                existing_block.kill()
+        if self.current_dot_size == 1:
+            editor.paint(index_center, Grass)
+            return
 
-            new_block = obj.copy()
-            new_block.position = Vector2((x, y))
-            self.ground_sprite_group.add(new_block)
-            self.ground_sprite_dict.update({str(index): new_block})
+        fill_area = self.dot_list[self.current_dot_size - 2]
+
+        index_list = []
+        for x in range(fill_area.shape[0]):
+            for y in range(fill_area.shape[1]):
+                if fill_area[x][y]:
+                    index = (y - fill_area.shape[0] // 2 + index_center[0], x - fill_area.shape[1] // 2 + index_center[1])
+                    index_list.append(index)
+
+        for i in index_list:
+            editor.paint(i, Grass)
+
+brush_tool = BrushTool()
 # ------------------------------------------------------------------------ #
 
 class Main:
     def __init__(self):
-        self.editor = WorldEditor((16, 16))
-
+        ...
     def handle_draw(self):
         camera.screen.fill('black')
 
-        self.editor.draw_sprites()
-        self.editor.draw_grid()
+        editor.draw_sprites()
+        editor.draw_grid()
         camera.draw_panning_border()
 
         pygame.display.update()
@@ -256,15 +384,31 @@ class Main:
                     exit()
                 # Start using the panning mouse.
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    camera.start_panning = mouse_position
+                    if event.button == 3: # Right click
+                        camera.start_panning = mouse_position
                 # Mouse scroll zoom
                 if event.type == pygame.MOUSEWHEEL:
                     camera.mouse_scroll_y = event.y
 
-            # TEST PLACE A BLOCK IN THE WORLD SPACE
+            mouses = pygame.mouse.get_pressed()
+            if mouses[0]:
+                brush_tool.pen_draw(mouse_position)
+
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_b]:
-                self.editor.paint(mouse_position, Grass)
+            if keys[pygame.K_1]:
+                brush_tool.current_dot_size = 1
+            elif keys[pygame.K_2]:
+                brush_tool.current_dot_size = 2
+            elif keys[pygame.K_3]:
+                brush_tool.current_dot_size = 3
+            elif keys[pygame.K_4]:
+                brush_tool.current_dot_size = 4
+            elif keys[pygame.K_5]:
+                brush_tool.current_dot_size = 5
+            elif keys[pygame.K_6]:
+                brush_tool.current_dot_size = 6
+            elif keys[pygame.K_7]:
+                brush_tool.current_dot_size = 7
 
             camera.movement(mouse_position)
 
