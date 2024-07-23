@@ -382,7 +382,7 @@ class Layer:
         self.index[index[0]][index[1]] = obj.id
         camera.screen_update = True
 
-        print(f'Successfully draw \'{obj.name}\' in {index}')
+        # print(f'Successfully draw \'{obj.name}\' in {index}')
 
 
     def remove(self, index):
@@ -392,7 +392,7 @@ class Layer:
             self.sprite_group.remove(existence_block)
             camera.screen_update = True
 
-            print(f'Successfully remove \'{existence_block.name}\' at {index}')
+            # print(f'Successfully remove \'{existence_block.name}\' at {index}')
 
 class WorldEditor:
     def __init__(self, world_size:tuple[int, int]):
@@ -502,16 +502,19 @@ class BrushTool:
         self.pen_list = [pen1, pen2, pen3, pen4, pen5, pen6]
         self.current_pen_size: int = 1
 
-        self.current_object: Block = None
+        self.block_current: Block = None
 
-    def __pen_draw(self, layer: Layer, mouse_position):
+        self.is_holding_copy_brush: bool = False
+        self.has_copied_block: bool = False
+
+    def __pen_draw(self, layer: Layer, mouse_position: Vector2):
         index_center = world_editor.GetCurrentWorldIndex(mouse_position)
 
         if index_center == (None, None):
             return
 
         if self.current_pen_size == 1:
-            world_editor.layer_index_update(layer, index_center, self.current_object)
+            world_editor.layer_index_update(layer, index_center, self.block_current)
             return
 
         fill_area = self.pen_list[self.current_pen_size - 2]
@@ -524,9 +527,9 @@ class BrushTool:
                     index_list.append(i)
 
         for index in index_list:
-            world_editor.layer_index_update(layer, index, self.current_object)
+            world_editor.layer_index_update(layer, index, self.block_current)
 
-    def __pen_erase(self, layer: Layer, mouse_position):
+    def __pen_erase(self, layer: Layer, mouse_position: Vector2):
         index_center = world_editor.GetCurrentWorldIndex(mouse_position)
 
         if index_center == (None, None):
@@ -569,12 +572,43 @@ class BrushTool:
 
         print(f'pen size : {self.current_pen_size}')
 
-    def __fill_area(self, layer, mouse_position):
-        index_list = find_connected_index(layer.index, world_editor.GetCurrentWorldIndex(mouse_position))
-        for index in index_list:
-            world_editor.layer_index_update(layer, index, self.current_object)
+    def __fill_area(self, layer: Layer, mouse_position: Vector2):
+        index = world_editor.GetCurrentWorldIndex(mouse_position)
+        if index == (None, None):
+            return
 
-    def paint(self, layer: Layer, mouse_position):
+        index_list = find_connected_index(layer.index, index)
+        for i in index_list:
+            world_editor.layer_index_update(layer, i, self.block_current)
+
+    def __copy_block(self, layer: Layer, mouse_position: Vector2):
+        index = world_editor.GetCurrentWorldIndex(mouse_position)
+        if index == (None, None):
+            return
+
+        # If copy emtpy index, return 'erase' brush
+        if layer.index[index[0]][index[1]] == 0:
+            brush_tool.block_current = None
+        else:
+            # Copy current block data
+            block = layer.sprite_dict[index]
+            self.block_current = block
+
+        self.copied_block = True
+        self.is_holding_copy_brush = False
+
+    def __copy_brush_clear_data(self):
+        if not self.is_holding_copy_brush:
+            block_copied = self.block_current
+            if block_copied is None:
+                self.brush_current = 'erase'
+                print('Copied \'None\', Brush : \'erase\'')
+            else:
+                self.brush_current = 'pen'
+                print(f'Copied \'{block_copied.name}\', Brush : \'pen\'')
+            self.has_copied_block = False
+
+    def paint(self, layer: Layer, mouse_position: Vector2):
         mouses = pygame.mouse.get_pressed()
         if mouses[0]:
             if self.brush_current == 'pen':
@@ -583,6 +617,12 @@ class BrushTool:
                 self.__pen_erase(layer, mouse_position)
             elif self.brush_current == 'fill':
                 self.__fill_area(layer, mouse_position)
+            elif self.brush_current == 'copy':
+                if self.is_holding_copy_brush:
+                    self.__copy_block(layer, mouse_position)
+        else:
+            if self.brush_current == 'copy':
+                self.__copy_brush_clear_data()
 
 
 class BrushMenu(Menu):
@@ -591,8 +631,8 @@ class BrushMenu(Menu):
         self._add_button_value(['pen', 'erase', 'fill', 'copy'])
         self._add_button_image(['Images/Interfaces/brush_interface/pen.png',
                                'Images/Interfaces/brush_interface/erase.png',
-                               'Images/Interfaces/emtpy_slot.png',
-                               'Images/Interfaces/emtpy_slot.png'
+                               'Images/Interfaces/brush_interface/fill.png',
+                               'Images/Interfaces/brush_interface/copy.png'
                                ])
 
     def brush_select(self):
@@ -602,10 +642,15 @@ class BrushMenu(Menu):
 
         if brush_tool.brush_current == brush_select:
             brush_tool.brush_current = ""
+            brush_tool.is_holding_copy_brush = False
             print(f'Cancel \'{brush_select}\'')
         else:
             brush_tool.brush_current = brush_select
             print(f'Brush: {brush_select}')
+
+        if brush_select == 'copy':
+            brush_tool.is_holding_copy_brush = True
+
 
 class BlockMenu(Menu):
     def __init__(self):
@@ -625,16 +670,16 @@ class BlockMenu(Menu):
         if block_select is None:
             return
 
-        if isinstance(brush_tool.current_object, Block):
-            if brush_tool.current_object.name == block_select.name:
-                brush_tool.current_object = None
+        if isinstance(brush_tool.block_current, Block):
+            if brush_tool.block_current.name == block_select.name:
+                brush_tool.block_current = None
                 print(f'Canceled block \'{block_select.name}\'')
             else:
-                brush_tool.current_object = block_select
+                brush_tool.block_current = block_select
                 print(f'Block selected : {block_select.name}')
             return
 
-        brush_tool.current_object = block_select
+        brush_tool.block_current = block_select
         print(f'Block selected : {block_select.name}')
 
 world_editor = WorldEditor((64, 64))
