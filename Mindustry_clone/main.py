@@ -208,6 +208,43 @@ def ScreenToWorldCoordinate(screen_position) -> Vector2:
     world_y = screen_position[1] / camera.scale + camera.offset.y
     return Vector2((int(world_x), int(world_y)))
 
+def find_connected_index(arr: np.ndarray, index: tuple[int, int]):
+    direction: list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    col: int = arr.shape[0]
+    row: int = arr.shape[1]
+
+    value = arr[index[0]][index[1]]
+
+    is_stop: bool = False
+    group: dict = {index: False}
+
+    while not is_stop:
+        raw_group: dict = {}
+        for index, is_check in group.items():
+            # Continue if the index has already checked.
+            if is_check:
+                is_stop = True
+
+            X, Y = index
+            for dx, dy in direction:
+                x, y = X + dx, Y + dy
+                # Continue if index out of range.
+                if not 0 <= x < col or not 0 <= y < row:
+                    continue
+
+                if arr[x][y] == value:
+                    # Continue if it already has the index.
+                    if (x, y) in group:
+                        continue
+
+                    raw_group.update({(x, y): False})
+                    is_stop = False
+
+            # Update the index has checked
+            group[index] = True
+        group.update(raw_group)
+
+    return [key for key in group.keys()]
 class Button(Sprite):
     def __init__(self, size: tuple[int, int], position: tuple[int, int], value = None, image_source: FilePath = ""):
         super().__init__()
@@ -532,6 +569,11 @@ class BrushTool:
 
         print(f'pen size : {self.current_pen_size}')
 
+    def __fill_area(self, layer, mouse_position):
+        index_list = find_connected_index(layer.index, world_editor.GetCurrentWorldIndex(mouse_position))
+        for index in index_list:
+            world_editor.layer_index_update(layer, index, self.current_object)
+
     def paint(self, layer: Layer, mouse_position):
         mouses = pygame.mouse.get_pressed()
         if mouses[0]:
@@ -539,6 +581,8 @@ class BrushTool:
                 self.__pen_draw(layer, mouse_position)
             elif self.brush_current == 'erase':
                 self.__pen_erase(layer, mouse_position)
+            elif self.brush_current == 'fill':
+                self.__fill_area(layer, mouse_position)
 
 
 class BrushMenu(Menu):
