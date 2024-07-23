@@ -25,27 +25,23 @@ KEY_ZOOM_SPEED: float = 0.2
 GRID_COLOR: str = "WHITE"
 CAMERA_PANNING_BORDER_COLOR: str = "YELLOW"
 
-pygame.init()
 FPS: int = 60
-clock = pygame.time.Clock()
+pygame.init()
+clock: pygame.time.Clock = pygame.time.Clock()
 
 # ------------------------------------------------------------------------ #
 #                                  CAMERA                                  #
 # ------------------------------------------------------------------------ #
 class Camera:
     def __init__(self):
-        # Public variables
         self.screen: pygame.Surface = pygame.display.set_mode(SCREEN_SIZE)
         self.offset: Vector2 = Vector2()
         self.scale: float = 1.0
         self.start_panning: Vector2 = Vector2()
         self.mouse_scroll_y: int = 0
 
-        self.need_update:bool = True
-        self.screen_update: bool = False
-        self.is_moving: bool = False
+        self.screen_update: bool = True
 
-        # Private variables
         l: int = CAMERA_PANNING_BORDER['left']
         t: int = CAMERA_PANNING_BORDER['top']
         w: int = self.screen.get_size()[0] - CAMERA_PANNING_BORDER['left'] - CAMERA_PANNING_BORDER['right']
@@ -54,14 +50,12 @@ class Camera:
         self.__camera_border: pygame.Rect = pygame.Rect(l, t, w, h)
 
     def movement(self, mouse_position: Vector2):
-        self.is_moving = False
-
         # Mouse pressed panning
         mouses = pygame.mouse.get_pressed()
         if mouses[2]:
             self.offset += (self.start_panning - mouse_position) // self.scale
             self.start_panning = mouse_position
-            self.is_moving = True
+            self.screen_update = True
 
         # # Mouse border panning
         # if pygame.mouse.get_focused():
@@ -79,25 +73,25 @@ class Camera:
         #     else:
         #         self.__direction.y = 0
         #     self.offset += self.__direction * MOUSE_PANNING_SPEED
-        #     self.is_moving = True
+        #     self.screen_update = True
 
         # Key pressed panning
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.__direction.x = -1
-            self.is_moving = True
+            self.screen_update = True
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.__direction.x = 1
-            self.is_moving = True
+            self.screen_update = True
         else:
             self.__direction.x = 0
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.__direction.y = -1
-            self.is_moving = True
+            self.screen_update = True
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
             self.__direction.y = 1
-            self.is_moving = True
+            self.screen_update = True
         else:
             self.__direction.y = 0
 
@@ -107,33 +101,31 @@ class Camera:
         # Mouse scroll zoom
         if self.mouse_scroll_y < 0:
             self.scale += 0.1 * MOUSE_ZOOM_SPEED
-            self.is_moving = True
+            self.screen_update = True
             if self.scale > ZOOM_MAX:
                 self.scale = ZOOM_MAX
-                self.is_moving = False
+                self.screen_update = False
         elif self.mouse_scroll_y > 0:
             self.scale -= 0.1 * MOUSE_ZOOM_SPEED
-            self.is_moving = True
+            self.screen_update = True
             if self.scale < ZOOM_MIN:
                 self.scale = ZOOM_MIN
-                self.is_moving = False
+                self.screen_update = False
 
         # Key zoom
         if keys[pygame.K_q] or keys[pygame.K_LEFTBRACKET]:
             self.scale += 0.1 * KEY_ZOOM_SPEED
-            self.is_moving = True
+            self.screen_update = True
             if self.scale > ZOOM_MAX:
                 self.scale = ZOOM_MAX
-                self.is_moving = False
+                self.screen_update = False
         elif keys[pygame.K_e] or keys[pygame.K_RIGHTBRACKET]:
             self.scale -= 0.1 * KEY_ZOOM_SPEED
-            self.is_moving = True
+            self.screen_update = True
             if self.scale < ZOOM_MIN:
                 self.scale = ZOOM_MIN
-                self.is_moving = False
-
+                self.screen_update = False
         after_zoom = ScreenToWorldCoordinate(mouse_position)
-
         self.offset += before_zoom - after_zoom
 
         self.mouse_scroll_y = 0 # Reset value
@@ -152,13 +144,14 @@ class Block(Sprite):
     def __init__(self, image_source: FilePath = ""):
         super().__init__()
         self.image_source: str = image_source
+        self.name: str = ""
+        self.id: int = 0
+
         if not len(self.image_source):
             self.original_image: pygame.Surface = pygame.image.load('Images/NOT_FOUND.png').convert_alpha()
         else:
             self.original_image: pygame.Surface = pygame.image.load(self.image_source).convert_alpha()
 
-        self.name: str = ""
-        self.id: int = 0
         self.image: pygame.Surface = self.original_image
         self.rect: pygame.Rect = self.image.get_rect()
         self.position: Vector2 = Vector2()
@@ -179,6 +172,18 @@ class Block(Sprite):
 Grass = Block('Images/Block_Images/Grass_001.png')
 Grass.name = 'Grass'
 Grass.id = 1
+
+Rock = Block('Images/Block_Images/Rock_002.png')
+Rock.name = 'Rock'
+Rock.id = 2
+
+Sand = Block('Images/Block_Images/Sand_003.png')
+Sand.name = 'Sand'
+Sand.id = 3
+
+Water = Block('Images/Block_Images/Water_004.png')
+Water.name = 'Water'
+Water.id = 4
 # ------------------------------------------------------------------------ #
 
 
@@ -204,54 +209,191 @@ def ScreenToWorldCoordinate(screen_position) -> Vector2:
     return Vector2((int(world_x), int(world_y)))
 
 class Button(Sprite):
-    def __init__(self, size:tuple[int, int], pos:tuple[int, int], value = None):
+    def __init__(self, size: tuple[int, int], position: tuple[int, int], value = None, image_source: FilePath = ""):
         super().__init__()
+        self.image_source: str = image_source
+        if not len(self.image_source):
+            self.original_image: pygame.Surface = pygame.image.load('Images/NOT_FOUND.png').convert_alpha()
+        else:
+            self.original_image: pygame.Surface = pygame.image.load(self.image_source).convert_alpha()
+
         self.size: tuple[int, int] = size
-        self.image: pygame.Surface = pygame.Surface(size)
-        self.image.fill('WHITE')
-        self.rect: pygame.Rect = self.image.get_rect(topleft=pos)
+        self.position: Vector2 = Vector2(position)
+        self.image = pygame.transform.scale(self.original_image, self.size)
+        self.rect: pygame.Rect = self.image.get_rect(topleft=self.position)
         self.value = value
 
     def is_click(self):
-        if pygame.Rect.collidepoint(self.rect, pygame.mouse.get_pos()):
-            return True
-        else:
-            return False
+        return pygame.Rect.collidepoint(self.rect, pygame.mouse.get_pos())
+
+    def update(self, offset: Vector2):
+        self.rect.topleft = self.position + offset
+
+
+class Menu:
+    def __init__(self, table: tuple[int, int], cell_size: int):
+        self.button_group: Group = Group()
+        self.button_dict: dict = {}
+
+        i: int = 1
+        for y in range(table[1]):
+            for x in range(table[0]):
+                button = Button((cell_size, cell_size), (x * cell_size, y * cell_size))
+                self.button_group.add(button)
+                self.button_dict.update({i: button})
+                i += 1
+
+        self.rect: pygame.Rect = pygame.Rect((0, 0), (table[0] * cell_size, table[1] * cell_size))
+        self.visible: bool = True
+        self.rect_visible: bool = True
+
+        self.start_panning: Vector2 = Vector2()
+        self.offset: Vector2 = Vector2()
+        self.is_move_tab: bool = False
+
+    def draw(self):
+        if not self.visible:
+            return
+
+        self.button_group.update(self.offset)
+        self.button_group.draw(camera.screen)
+
+        self.rect.topleft = self.offset
+        if self.rect_visible:
+            pygame.draw.rect(camera.screen, 'RED', self.rect, 1)
+
+    def toggle_tab(self):
+        self.visible = not self.visible
+        camera.screen_update = True
+
+    def start_move_tab(self):
+        if not self.visible:
+            return
+
+        self.start_panning = pygame.mouse.get_pos()
+        self.is_move_tab = True
+
+    def clear_move_tab(self):
+        if not self.visible:
+            return
+
+        self.is_move_tab = False
+
+    def move_tab(self, mouse_position):
+        if not self.visible or not self.is_move_tab:
+            return
+
+        mouses = pygame.mouse.get_pressed()
+
+        if mouses[0]:
+            self.offset -= self.start_panning - mouse_position
+            self.start_panning = mouse_position
+            camera.screen_update = True
+
+    def _add_button_value(self, value_list: list):
+
+        if len(value_list) > len(self.button_dict):
+            raise IndexError(f'The value_list has elements greater than the total button. \n'
+                             f'The total amount of button values is {len(self.button_dict)}, but got \'{len(value_list)}\'.')
+
+        button: Button
+        for index, value in enumerate(value_list):
+            button = self.button_dict[index+1]
+            button.value = value
+
+    def _add_button_image(self,image_source_list: list[FilePath]):
+        if not isinstance(image_source_list, list):
+            image_source_list = [image_source_list]
+
+        if len(image_source_list) > len(self.button_dict):
+            raise IndexError(f'The image_source_list has elements greater than the total button. \n'
+                             f'The total amount of button values is {len(self.button_dict)}, but got \'{len(image_source_list)}\'.')
+
+        button: Button
+        for index, image_source in enumerate(image_source_list):
+            if image_source == "":
+                continue
+
+            button = self.button_dict[index+1]
+            button.image_source = image_source
+            button.original_image = pygame.image.load(image_source).convert_alpha()
+            button.image = pygame.transform.scale(button.original_image, button.size)
+
+    def _get_current_button(self):
+        if not self.visible:
+            return
+
+        button: Button
+        for button in self.button_group:
+            if button.is_click():
+                return button.value
+
+
+class Layer:
+    def __init__(self, size: tuple[int, int]):
+        self.index: np.ndarray = np.zeros(size)
+        self.sprite_group: Group = Group()
+        self.sprite_dict: dict = {}
+
+    def draw(self):
+        self.sprite_group.update()
+        self.sprite_group.draw(camera.screen)
+
+    def add(self, index, obj: Block):
+        self.sprite_group.add(obj)
+        self.sprite_dict.update({index: obj})
+        self.index[index[0]][index[1]] = obj.id
+        camera.screen_update = True
+
+        print(f'Successfully draw \'{obj.name}\' in {index}')
+
+
+    def remove(self, index):
+        if index in self.sprite_dict:
+            existence_block = self.sprite_dict.pop(index)
+            self.index[index[0]][index[1]] = 0
+            self.sprite_group.remove(existence_block)
+            camera.screen_update = True
+
+            print(f'Successfully remove \'{existence_block.name}\' at {index}')
 
 class WorldEditor:
     def __init__(self, world_size:tuple[int, int]):
-        self.world_size: tuple[int, int] = world_size
+        self.__world_size: tuple[int, int] = world_size
         self.__base_world_index: np.ndarray = np.zeros(world_size)
 
-        self.background_sprite_group: Group = Group()
-        self.background_sprite_dict: dict = {}
+        self.background_layer: Layer = Layer(world_size)
 
     def GetCurrentWorldIndex(self, position) -> (tuple[int, int] | tuple[None, None]):
         x, y = ScreenToWorldCoordinate(position) // PIXEL
-        # Return None if the index is out of range of the grid_indices
+        # Return None the index is out of world base index range.
         if (x < 0 or x > self.__base_world_index.shape[0] - 1) or (y < 0 or y > self.__base_world_index.shape[1] - 1):
             return None, None
         return int(x), int(y)
 
-    def paint_block(self, index, obj: Block):
-        x, y = index
+    def layer_index_update(self, layer: Layer, index: tuple[int, int], block: Block):
+        if block is None:
+            return
 
-        # Return if the index is out of range of the grid_indices
+        x, y = index
+        # Return if the index is out of world base index range.
         if (x < 0 or x > self.__base_world_index.shape[0] - 1) or (y < 0 or y > self.__base_world_index.shape[1] - 1):
             return
 
-        if str(index) in self.background_sprite_dict:
-            existing_block = self.background_sprite_dict[str(index)]
-            existing_block.kill()
+        # Return if it already has the same block in the index
+        if layer.index[x][y] == block.id:
+            return
+        else:
+            # Remove previous index data
+            layer.remove(index)
 
-        new_block = obj.copy()
+        new_block = block.copy()
         new_block.position = Vector2((x, y)) * PIXEL
-        self.background_sprite_group.add(new_block)
-        self.background_sprite_dict.update({str(index): new_block})
+        layer.add(index, new_block)
 
     def draw_grid(self):
-        x_line = np.linspace(0, self.world_size[0], self.world_size[0] + 1)
-        y_line = np.linspace(0, self.world_size[1], self.world_size[1] + 1)
+        x_line = np.linspace(0, self.__world_size[0], self.__world_size[0] + 1)
+        y_line = np.linspace(0, self.__world_size[1], self.__world_size[1] + 1)
         for x in x_line:
             pygame.draw.line(camera.screen, GRID_COLOR, WorldToScreenCoordinate((x * PIXEL, y_line[0]) * PIXEL),
                              WorldToScreenCoordinate((x * PIXEL, y_line[-1] * PIXEL)))
@@ -259,9 +401,9 @@ class WorldEditor:
             pygame.draw.line(camera.screen, GRID_COLOR, WorldToScreenCoordinate((x_line[0] * PIXEL, y* PIXEL)),
                              WorldToScreenCoordinate((x_line[-1] * PIXEL, y * PIXEL)))
 
-    def draw_sprites(self):
-        self.background_sprite_group.update()
-        self.background_sprite_group.draw(camera.screen)
+    def draw_layer(self):
+        self.background_layer.draw()
+
 
 class BrushTool:
     def __init__(self):
@@ -323,14 +465,16 @@ class BrushTool:
         self.pen_list = [pen1, pen2, pen3, pen4, pen5, pen6]
         self.current_pen_size: int = 1
 
-    def __pen_draw(self, mouse_position, obj:Block):
+        self.current_object: Block = None
+
+    def __pen_draw(self, layer: Layer, mouse_position):
         index_center = world_editor.GetCurrentWorldIndex(mouse_position)
 
         if index_center == (None, None):
             return
 
         if self.current_pen_size == 1:
-            world_editor.paint_block(index_center, obj)
+            world_editor.layer_index_update(layer, index_center, self.current_object)
             return
 
         fill_area = self.pen_list[self.current_pen_size - 2]
@@ -339,22 +483,21 @@ class BrushTool:
         for x in range(fill_area.shape[0]):
             for y in range(fill_area.shape[1]):
                 if fill_area[x][y]:
-                    index = (y - fill_area.shape[0] // 2 + index_center[0], x - fill_area.shape[1] // 2 + index_center[1])
-                    index_list.append(index)
+                    i = (y - fill_area.shape[0] // 2 + index_center[0], x - fill_area.shape[1] // 2 + index_center[1])
+                    index_list.append(i)
 
-        for i in index_list:
-            world_editor.paint_block(i, obj)
+        for index in index_list:
+            world_editor.layer_index_update(layer, index, self.current_object)
 
-    def __pen_erase(self, mouse_position):
+    def __pen_erase(self, layer: Layer, mouse_position):
         index_center = world_editor.GetCurrentWorldIndex(mouse_position)
 
         if index_center == (None, None):
             return
 
         if self.current_pen_size == 1:
-            if str(index_center) in world_editor.background_sprite_dict:
-                world_editor.background_sprite_dict[str(index_center)].kill()
-                return
+            layer.remove(index_center)
+            return
 
         fill_area = self.pen_list[self.current_pen_size - 2]
 
@@ -362,76 +505,112 @@ class BrushTool:
         for x in range(fill_area.shape[0]):
             for y in range(fill_area.shape[1]):
                 if fill_area[x][y]:
-                    index = (
-                    y - fill_area.shape[0] // 2 + index_center[0], x - fill_area.shape[1] // 2 + index_center[1])
-                    index_list.append(index)
+                    i = (y - fill_area.shape[0] // 2 + index_center[0], x - fill_area.shape[1] // 2 + index_center[1])
+                    index_list.append(i)
 
-        for i in index_list:
-            if str(i) in world_editor.background_sprite_dict:
-                world_editor.background_sprite_dict[str(i)].kill()
+        for index in index_list:
+            layer.remove(index)
 
-    def change_pen_size(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_1]:
+    def change_pen_size(self, event: pygame.event):
+        if not self.brush_current in ['pen', 'erase']:
+            return
+
+        if event.key == pygame.K_1:
             self.current_pen_size = 1
-        elif keys[pygame.K_2]:
+        elif event.key == pygame.K_2:
             self.current_pen_size = 2
-        elif keys[pygame.K_3]:
+        elif event.key == pygame.K_3:
             self.current_pen_size = 3
-        elif keys[pygame.K_4]:
+        elif event.key == pygame.K_4:
             self.current_pen_size = 4
-        elif keys[pygame.K_5]:
+        elif event.key == pygame.K_5:
             self.current_pen_size = 5
-        elif keys[pygame.K_6]:
+        elif event.key == pygame.K_6:
             self.current_pen_size = 6
-        elif keys[pygame.K_7]:
+        elif event.key == pygame.K_7:
             self.current_pen_size = 7
 
-    def draw(self, mouse_position , obj:Block):
+        print(f'pen size : {self.current_pen_size}')
+
+    def paint(self, layer: Layer, mouse_position):
         mouses = pygame.mouse.get_pressed()
         if mouses[0]:
             if self.brush_current == 'pen':
-                self.__pen_draw(mouse_position, obj)
-                camera.screen_update = True
+                self.__pen_draw(layer, mouse_position)
             elif self.brush_current == 'erase':
-                self.__pen_erase(mouse_position)
-                camera.screen_update = True
+                self.__pen_erase(layer, mouse_position)
 
-        if self.brush_current in ['pen', 'erase']:
-            self.change_pen_size()
 
-class BrushMenu:
+class BrushMenu(Menu):
     def __init__(self):
-        super().__init__()
-        brush_type_button1 = Button((50, 50), (0, 0), 'pen')
-        brush_type_button2 = Button((50, 50), (0, 50), 'erase')
-        brush_type_button3 = Button((50, 50), (0, 100), 'fill')
-        brush_type_button4 = Button((50, 50), (0, 150), 'copy')
-        self.brush_type_group = Group(brush_type_button1,
-                                      brush_type_button2,
-                                      brush_type_button3,
-                                      brush_type_button4)
+        super().__init__((1, 4), 50)
+        self._add_button_value(['pen', 'erase', 'fill', 'copy'])
+        self._add_button_image(['Images/Interfaces/brush_interface/pen.png',
+                               'Images/Interfaces/brush_interface/erase.png',
+                               'Images/Interfaces/emtpy_slot.png',
+                               'Images/Interfaces/emtpy_slot.png'
+                               ])
 
-        self.rect: pygame.Rect = pygame.Rect((0, 0), (50, 200))
-        self.visible: bool = False
+    def brush_select(self):
+        brush_select = self._get_current_button()
+        if brush_select is None:
+            return
 
-    def draw(self):
-        if self.visible:
-            self.brush_type_group.draw(camera.screen)
+        if brush_tool.brush_current == brush_select:
+            brush_tool.brush_current = ""
+            print(f'Cancel \'{brush_select}\'')
+        else:
+            brush_tool.brush_current = brush_select
+            print(f'Brush: {brush_select}')
 
-            pygame.draw.rect(camera.screen, 'RED', self.rect, 1)
+class BlockMenu(Menu):
+    def __init__(self):
+        super().__init__((4, 1), 25)
+        self.offset = Vector2((700, 0))
 
-    def get_current_brush(self):
-        brush: Button
-        for brush in self.brush_type_group:
-            if brush.is_click():
-                return brush.value
+        block_list = [
+            Grass, Rock, Sand, Water,
+        ]
 
-        return ""
+        self._add_button_value(block_list)
+        self._add_button_image([block.image_source for block in block_list])
+
+    def block_select(self):
+        block_select = self._get_current_button()
+
+        if block_select is None:
+            return
+
+        if isinstance(brush_tool.current_object, Block):
+            if brush_tool.current_object.name == block_select.name:
+                brush_tool.current_object = None
+                print(f'Canceled block \'{block_select.name}\'')
+            else:
+                brush_tool.current_object = block_select
+                print(f'Block selected : {block_select.name}')
+            return
+
+        brush_tool.current_object = block_select
+        print(f'Block selected : {block_select.name}')
 
 world_editor = WorldEditor((64, 64))
 brush_tool = BrushTool()
+
+# Menu Tabs
 brush_menu = BrushMenu()
+block_menu = BlockMenu()
+
+def mouse_on_menu_tabs(mouse_position: Vector2) -> bool:
+    menus: list[Menu] = [brush_menu, block_menu]
+
+    menu: Menu
+    for menu in menus:
+        if not menu.visible:
+            continue
+        if pygame.Rect.collidepoint(menu.rect, mouse_position):
+            return False
+    return True
+
 # ------------------------------------------------------------------------ #
 
 class Main:
@@ -449,18 +628,8 @@ class Main:
             # Start using the panning mouse.
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    # Brush select
-                    if brush_menu.visible:
-                        new_brush = brush_menu.get_current_brush()
-                        if not (new_brush == ""):
-                            # if pick the same brush, cancel.
-                            if new_brush == brush_tool.brush_current:
-                                brush_tool.brush_current = ""
-                                print(f'cancel \'{new_brush}\'')
-                            else:
-                                brush_tool.brush_current = new_brush
-                                print(f'brush: {new_brush}')
-
+                    brush_menu.brush_select()
+                    block_menu.block_select()
                 if event.button == 3:  # Right click
                     camera.start_panning = mouse_position
 
@@ -469,31 +638,33 @@ class Main:
                 camera.mouse_scroll_y = event.y
 
             # KEY DOWN
-            # Toggle brush menu
             if event.type == pygame.KEYDOWN:
+                # Change 'pen' and 'erase' brush size
+                brush_tool.change_pen_size(event)
+
+                # Toggle brush menu
                 if event.key == pygame.K_b:
-                    brush_menu.visible = not brush_menu.visible
-                    camera.screen_update = True
+                    brush_menu.toggle_tab()
+                    block_menu.toggle_tab()
 
         camera.movement(mouse_position)
 
-        if not pygame.Rect.collidepoint(brush_menu.rect, mouse_position):
-            brush_tool.draw(mouse_position, Grass)
+        if mouse_on_menu_tabs(mouse_position):
+            brush_tool.paint(world_editor.background_layer, mouse_position)
 
     def handle_draw(self):
-        if camera.is_moving or camera.screen_update:
-            camera.need_update = True
-
-        if camera.need_update:
+        if camera.screen_update:
             camera.screen.fill('black')
-            world_editor.draw_sprites()
+            world_editor.draw_layer()
             world_editor.draw_grid()
+
             brush_menu.draw()
+            block_menu.draw()
+
             camera.draw_panning_border()
 
             pygame.display.update()
 
-        camera.need_update = False
         camera.screen_update = False
 
     def run(self):
