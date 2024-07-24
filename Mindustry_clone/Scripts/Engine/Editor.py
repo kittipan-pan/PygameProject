@@ -43,59 +43,14 @@ class Camera:
         w: int = self.screen.get_size()[0] - CAMERA_PANNING_BORDER['left'] - CAMERA_PANNING_BORDER['right']
         h: int = self.screen.get_size()[1] - CAMERA_PANNING_BORDER['top'] - CAMERA_PANNING_BORDER['bottom']
         self.__direction: Vector2 = Vector2()
-        self.__camera_border: pygame.Rect = pygame.Rect(l, t, w, h)
+        self.panning_border: pygame.Rect = pygame.Rect(l, t, w, h)
 
     def movement(self, mouse_position: Vector2):
         """
         Camera screen panning and zoom. Self-update its offset and scale.
         :param mouse_position: Mouse position
         """
-        # Mouse pressed panning
-        mouses = pygame.mouse.get_pressed()
-        if mouses[2]:
-            self.offset += (self.start_panning - mouse_position) // self.scale
-            self.start_panning = mouse_position
-            self.screen_update = True
-
-        # # Mouse border panning
-        # if pygame.mouse.get_focused():
-        #     if mouse_position.x < self.__camera_border.left:
-        #         self.__direction.x = -1
-        #     elif mouse_position.x > self.__camera_border.right:
-        #         self.__direction.x = 1
-        #     else:
-        #
-        #         self.__direction.x = 0
-        #     if mouse_position.y < self.__camera_border.top:
-        #         self.__direction.y = -1
-        #     elif mouse_position.y > self.__camera_border.bottom:
-        #         self.__direction.y = 1
-        #     else:
-        #         self.__direction.y = 0
-        #     self.offset += self.__direction * MOUSE_PANNING_SPEED
-        #     self.screen_update = True
-
-        # Key pressed panning
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.__direction.x = -1
-            self.screen_update = True
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.__direction.x = 1
-            self.screen_update = True
-        else:
-            self.__direction.x = 0
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.__direction.y = -1
-            self.screen_update = True
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.__direction.y = 1
-            self.screen_update = True
-        else:
-            self.__direction.y = 0
-
-        self.offset += self.__direction * KEY_PANNING_SPEED // self.scale
 
         before_zoom = ScreenToWorldCoordinate(mouse_position)
         # Mouse scroll zoom
@@ -125,16 +80,62 @@ class Camera:
             if self.scale < ZOOM_MIN:
                 self.scale = ZOOM_MIN
                 self.screen_update = False
+
         after_zoom = ScreenToWorldCoordinate(mouse_position)
         self.offset += before_zoom - after_zoom
+        self.mouse_scroll_y = 0  # Reset value
 
-        self.mouse_scroll_y = 0 # Reset value
+        # Mouse pressed panning
+        mouses = pygame.mouse.get_pressed()
+        if mouses[2]:
+            self.offset += (self.start_panning - mouse_position) // self.scale
+            self.start_panning = mouse_position
+            self.screen_update = True
 
+        # # Mouse border panning
+        # if pygame.mouse.get_focused():
+        #     if mouse_position.x < self.panning_border.left:
+        #         self.__direction.x = -1
+        #     elif mouse_position.x > self.panning_border.right:
+        #         self.__direction.x = 1
+        #     else:
+        #
+        #         self.__direction.x = 0
+        #     if mouse_position.y < self.panning_border.top:
+        #         self.__direction.y = -1
+        #     elif mouse_position.y > self.panning_border.bottom:
+        #         self.__direction.y = 1
+        #     else:
+        #         self.__direction.y = 0
+        #     self.offset += self.__direction * MOUSE_PANNING_SPEED
+        #     self.screen_update = True
+
+        # Key pressed panning
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.__direction.x = -1
+            self.screen_update = True
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.__direction.x = 1
+            self.screen_update = True
+        else:
+            self.__direction.x = 0
+
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            self.__direction.y = -1
+            self.screen_update = True
+        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            self.__direction.y = 1
+            self.screen_update = True
+        else:
+            self.__direction.y = 0
+        self.offset += self.__direction * KEY_PANNING_SPEED // self.scale
+
+    # THIS METHODS USES TO DISPLAY THE CAMERA SCREEN FOR A WHILE
     def draw_panning_border(self):
         """
         Display mouse panning border.
         """
-        pygame.draw.rect(self.screen, CAMERA_PANNING_BORDER_COLOR, self.__camera_border, 5)
+        pygame.draw.rect(self.screen, CAMERA_PANNING_BORDER_COLOR, self.panning_border, 5)
 
 
 class Block(Sprite):
@@ -152,6 +153,8 @@ class Block(Sprite):
         self.image: pygame.Surface = self.original_image
         self.rect: pygame.Rect = self.image.get_rect()
         self.position: Vector2 = Vector2()
+
+        self.visible: bool = True
 
     def copy(self):
         """
@@ -171,8 +174,21 @@ class Block(Sprite):
         """
         Self-display image corresponds to the camera.
         """
+        self.visible = True
         self.rect.topleft = WorldToScreenCoordinate(self.position)
-        self.image = pygame.transform.scale(self.original_image, (PIXEL * camera.scale, PIXEL * camera.scale))
+
+        # Left
+        if self.rect.x < camera.panning_border.left - int(PIXEL * camera.scale):
+            self.visible = False
+        # Right
+        elif self.rect.x > camera.panning_border.right:
+            self.visible = False
+        # Top
+        if self.rect.y < camera.panning_border.top - int(PIXEL * camera.scale):
+            self.visible = False
+        # Down
+        elif self.rect.y > camera.panning_border.bottom:
+            self.visible = False
 
 
 class Layer:
@@ -186,7 +202,16 @@ class Layer:
         Draw sprites on the screen.
         """
         self.sprite_group.update()
-        self.sprite_group.draw(camera.screen)
+        self.custom_draw()
+
+    def custom_draw(self):
+        block: Block
+        for block in self.sprite_group:
+            if not block.visible:
+                continue
+            block.image = pygame.transform.scale(block.original_image, (PIXEL * camera.scale, PIXEL * camera.scale))
+            camera.screen.blit(block.image, block.rect)
+
 
     def add(self, index: tuple[int, int], block: Block):
         """
