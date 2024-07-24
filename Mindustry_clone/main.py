@@ -11,8 +11,6 @@ class Main:
         ...
 
     def handle_event(self, mouse_position):
-        mouse_pressed = pygame.mouse.get_pressed()
-
         for event in pygame.event.get():
             # Exit the game.
             if event.type == pygame.QUIT:
