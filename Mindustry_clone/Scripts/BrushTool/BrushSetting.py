@@ -171,20 +171,25 @@ class BrushTool:
 
         if event.key == pygame.K_1:
             self.__pen_head_size = 1
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_2:
             self.__pen_head_size = 2
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_3:
             self.__pen_head_size = 3
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_4:
             self.__pen_head_size = 4
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_5:
             self.__pen_head_size = 5
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_6:
             self.__pen_head_size = 6
+            print(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_7:
             self.__pen_head_size = 7
-
-        print(f'Pen head size: {self.__pen_head_size}')
+            print(f'Pen head size: {self.__pen_head_size}')
 
     def __fill(self, layer: Layer, mouse_position: Vector2):
         """
