@@ -1,12 +1,6 @@
-import pygame
-from pygame.math import Vector2
-from pygame.sprite import Sprite, Group
-from Mindustry_clone.Scripts.Engine.Editor import FilePath, camera
-from Mindustry_clone.Scripts.BrushTool.BrushSetting import brush_tool
-from Mindustry_clone.Scripts.Data.Setting import BUTTON_SELECTED_COLOR, BUTTON_SELECTED_COLOR_THICKNESS
-from Mindustry_clone.Scripts.Data.BlockSetting import *
+from Mindustry_clone.Scripts.BrushTool.BrushSetting import *
 
-class Button(Sprite):
+class Button(pygame.sprite.Sprite):
     def __init__(self, size: tuple[int, int], position: tuple[int, int],
                  value = None, image_source: FilePath = ""):
         super().__init__()
@@ -17,7 +11,7 @@ class Button(Sprite):
             self.original_image: pygame.Surface = pygame.image.load(self.image_source).convert_alpha()
 
         self.size: tuple[int, int] = size
-        self.position: Vector2 = Vector2(position)
+        self.position: pygame.math.Vector2 = pygame.math.Vector2(position)
         self.image = pygame.transform.scale(self.original_image, self.size)
         self.rect: pygame.Rect = self.image.get_rect(topleft=self.position)
         self.value = value
@@ -28,7 +22,7 @@ class Button(Sprite):
         """
         return pygame.Rect.collidepoint(self.rect, pygame.mouse.get_pos())
 
-    def update(self, offset: Vector2):
+    def update(self, offset: pygame.math.Vector2):
         """
         Self-display image relatives to the offset.
 
@@ -38,7 +32,7 @@ class Button(Sprite):
 
 class Menu:
     def __init__(self, table: tuple[int, int], cell_size: int):
-        self.button_group: Group[Button] = Group()
+        self.button_group: pygame.sprite.Group[Button] = pygame.sprite.Group()
         self.button_index_dict: dict[tuple[int, int], Button] = {}
 
         i: int = 1
@@ -51,10 +45,10 @@ class Menu:
 
         self.rect: pygame.Rect = pygame.Rect((0, 0), (table[0] * cell_size, table[1] * cell_size))
         self.visible: bool = True
-        self.rect_visible: bool = False
+        self.rect_visible: bool = True
 
-        self.start_panning: Vector2 = Vector2()
-        self.offset: Vector2 = Vector2()
+        self.start_panning: pygame.math.Vector2 = pygame.math.Vector2()
+        self.offset: pygame.math.Vector2 = pygame.math.Vector2()
         self.is_move_tab: bool = False
 
     def draw(self):
@@ -155,6 +149,7 @@ class Menu:
             if button.is_mouse_click():
                 return button
 
+
 class BrushMenu(Menu):
     def __init__(self):
         super().__init__((1, 4), 50)
@@ -189,12 +184,12 @@ class BrushMenu(Menu):
             brush_tool.is_holding_copy_brush = False
             camera.screen_update = True
 
-            print(f'Cancel \'{brush_select}\'')
+            debug.event_update(f'Cancel \'{brush_select}\'')
         else:
             brush_tool.brush_current = brush_select
             camera.screen_update = True
 
-            print(f'Brush: {brush_select}')
+            debug.event_update(f'Brush: {brush_select}')
 
         if brush_select == 'copy':
             brush_tool.is_holding_copy_brush = True
@@ -205,10 +200,12 @@ class BrushMenu(Menu):
         selected_brush_button_rect = self.brush_rect_dict[brush_tool.brush_current]
         pygame.draw.rect(camera.screen, BUTTON_SELECTED_COLOR, selected_brush_button_rect, BUTTON_SELECTED_COLOR_THICKNESS)
 
+
 class BlockMenu(Menu):
     def __init__(self):
         super().__init__((4, 1), 25)
-        self.offset = Vector2((700, 0))
+        block_list = [block for block in block_dict.values()]
+        self.offset = pygame.math.Vector2((700, 0))
         self._add_button_value(block_list)
         self._add_button_image([block.image_source for block in block_list])
 
@@ -236,17 +233,17 @@ class BlockMenu(Menu):
             if brush_tool.block_current.name == block_select.name:
                 brush_tool.block_current = None
                 camera.screen_update = True
-                print(f'Canceled block \'{block_select.name}\'')
+                debug.event_update(f'Canceled block \'{block_select.name}\'')
             else:
                 brush_tool.block_current = block_select
                 camera.screen_update = True
-                print(f'Block selected : {block_select.name}')
+                debug.event_update(f'Block selected : {block_select.name}')
             return
 
         # If 'block_current' is None, update the variable
         brush_tool.block_current = block_select
         camera.screen_update = True
-        print(f'Block selected : {block_select.name}')
+        debug.event_update(f'Block selected : {block_select.name}')
 
     def custom_draw(self):
         self.draw()
@@ -261,7 +258,7 @@ class BlockMenu(Menu):
 brush_menu = BrushMenu()
 block_menu = BlockMenu()
 
-def mouse_on_menu_tabs(mouse_position: Vector2) -> bool:
+def mouse_on_menu_tabs(mouse_position: pygame.math.Vector2) -> bool:
     menus: list[Menu] = [brush_menu, block_menu]
 
     menu: Menu
@@ -269,5 +266,5 @@ def mouse_on_menu_tabs(mouse_position: Vector2) -> bool:
         if not menu.visible:
             continue
         if pygame.Rect.collidepoint(menu.rect, mouse_position):
-            return False
-    return True
+            return True
+    return False
