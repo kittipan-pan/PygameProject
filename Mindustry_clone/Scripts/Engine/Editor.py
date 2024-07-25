@@ -1,200 +1,11 @@
-from Mindustry_clone.Scripts.Data.Setting import *
-import pygame
+from Mindustry_clone.Scripts.Setting.BlockSetting import *
 import numpy as np
-from pygame.math import Vector2
-from pygame.sprite import Sprite, Group
-
-pygame.init()
-
-def WorldToScreenCoordinate(world_position: Vector2) -> Vector2:
-    """
-    Convert world space --> screen space.
-
-    :param world_position: World position
-    :return: Screen coordinate relatives to its offset and scaling.
-    """
-    screen_x = (world_position[0] - camera.offset.x) * camera.scale
-    screen_y = (world_position[1] - camera.offset.y) * camera.scale
-    return Vector2((int(screen_x), int(screen_y)))
-
-def ScreenToWorldCoordinate(mouse_position: Vector2) -> Vector2:
-    """
-    Convert screen space --> world space.
-
-    :param mouse_position: Mouse position
-    :return: Original world coordinate.
-    """
-    world_x = mouse_position[0] / camera.scale + camera.offset.x
-    world_y = mouse_position[1] / camera.scale + camera.offset.y
-    return Vector2((int(world_x), int(world_y)))
-
-class Camera:
-    def __init__(self):
-        self.screen: pygame.Surface = pygame.display.set_mode(SCREEN_SIZE)
-        self.offset: Vector2 = Vector2()
-        self.scale: float = 1.0
-        self.start_panning: Vector2 = Vector2()
-        self.mouse_scroll_y: int = 0
-
-        self.screen_update: bool = True
-
-        l: int = CAMERA_PANNING_BORDER['left']
-        t: int = CAMERA_PANNING_BORDER['top']
-        w: int = self.screen.get_size()[0] - CAMERA_PANNING_BORDER['left'] - CAMERA_PANNING_BORDER['right']
-        h: int = self.screen.get_size()[1] - CAMERA_PANNING_BORDER['top'] - CAMERA_PANNING_BORDER['bottom']
-        self.__direction: Vector2 = Vector2()
-        self.panning_border: pygame.Rect = pygame.Rect(l, t, w, h)
-
-    def movement(self, mouse_position: Vector2):
-        """
-        Camera screen panning and zoom. Self-update its offset and scale.
-        :param mouse_position: Mouse position
-        """
-        keys = pygame.key.get_pressed()
-
-        before_zoom = ScreenToWorldCoordinate(mouse_position)
-        # Mouse scroll zoom
-        if self.mouse_scroll_y < 0:
-            self.scale += 0.1 * MOUSE_ZOOM_SPEED
-            self.screen_update = True
-            if self.scale > ZOOM_MAX:
-                self.scale = ZOOM_MAX
-                self.screen_update = False
-        elif self.mouse_scroll_y > 0:
-            self.scale -= 0.1 * MOUSE_ZOOM_SPEED
-            self.screen_update = True
-            if self.scale < ZOOM_MIN:
-                self.scale = ZOOM_MIN
-                self.screen_update = False
-
-        # Key zoom
-        if keys[pygame.K_q] or keys[pygame.K_LEFTBRACKET]:
-            self.scale += 0.1 * KEY_ZOOM_SPEED
-            self.screen_update = True
-            if self.scale > ZOOM_MAX:
-                self.scale = ZOOM_MAX
-                self.screen_update = False
-        elif keys[pygame.K_e] or keys[pygame.K_RIGHTBRACKET]:
-            self.scale -= 0.1 * KEY_ZOOM_SPEED
-            self.screen_update = True
-            if self.scale < ZOOM_MIN:
-                self.scale = ZOOM_MIN
-                self.screen_update = False
-
-        after_zoom = ScreenToWorldCoordinate(mouse_position)
-        self.offset += before_zoom - after_zoom
-        self.mouse_scroll_y = 0  # Reset value
-
-        # Mouse pressed panning
-        mouses = pygame.mouse.get_pressed()
-        if mouses[2]:
-            self.offset += (self.start_panning - mouse_position) // self.scale
-            self.start_panning = mouse_position
-            self.screen_update = True
-
-        # # Mouse border panning
-        # if pygame.mouse.get_focused():
-        #     if mouse_position.x < self.panning_border.left:
-        #         self.__direction.x = -1
-        #     elif mouse_position.x > self.panning_border.right:
-        #         self.__direction.x = 1
-        #     else:
-        #
-        #         self.__direction.x = 0
-        #     if mouse_position.y < self.panning_border.top:
-        #         self.__direction.y = -1
-        #     elif mouse_position.y > self.panning_border.bottom:
-        #         self.__direction.y = 1
-        #     else:
-        #         self.__direction.y = 0
-        #     self.offset += self.__direction * MOUSE_PANNING_SPEED
-        #     self.screen_update = True
-
-        # Key pressed panning
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.__direction.x = -1
-            self.screen_update = True
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.__direction.x = 1
-            self.screen_update = True
-        else:
-            self.__direction.x = 0
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.__direction.y = -1
-            self.screen_update = True
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.__direction.y = 1
-            self.screen_update = True
-        else:
-            self.__direction.y = 0
-        self.offset += self.__direction * KEY_PANNING_SPEED // self.scale
-
-    # THIS METHODS USES TO DISPLAY THE CAMERA SCREEN FOR A WHILE
-    def draw_panning_border(self):
-        """
-        Display mouse panning border.
-        """
-        pygame.draw.rect(self.screen, CAMERA_PANNING_BORDER_COLOR, self.panning_border, 5)
-
-
-class Block(Sprite):
-    def __init__(self, image_source: FilePath = ""):
-        super().__init__()
-        self.image_source: str = image_source
-        self.name: str = ""
-        self.id: int = None
-
-        if not len(self.image_source):
-            self.original_image: pygame.Surface = pygame.image.load('Images/NOT_FOUND.png').convert_alpha()
-        else:
-            self.original_image: pygame.Surface = pygame.image.load(self.image_source).convert_alpha()
-
-        self.image: pygame.Surface = self.original_image
-        self.rect: pygame.Rect = self.image.get_rect()
-        self.position: Vector2 = Vector2()
-
-        self.visible: bool = True
-
-    def copy(self):
-        """
-        Return a new class Block that has the same variable data.
-
-        :return: Self-copied block
-        """
-        cloned_block = Block(self.image_source)
-        cloned_block.name = self.name
-        cloned_block.id = self.id
-        cloned_block.image = self.image.copy()
-        cloned_block.rect = self.rect.copy()
-        cloned_block.position = self.position
-        return cloned_block
-
-    def update(self):
-        """
-        Self-display image corresponds to the camera.
-        """
-        self.visible = True
-        self.rect.topleft = WorldToScreenCoordinate(self.position)
-
-        # Left
-        if self.rect.x < camera.panning_border.left - int(PIXEL * camera.scale):
-            self.visible = False
-        # Right
-        elif self.rect.x > camera.panning_border.right:
-            self.visible = False
-        # Top
-        if self.rect.y < camera.panning_border.top - int(PIXEL * camera.scale):
-            self.visible = False
-        # Down
-        elif self.rect.y > camera.panning_border.bottom:
-            self.visible = False
-
+import pandas as pd
 
 class Layer:
     def __init__(self, size: tuple[int, int]):
         self.indices: np.ndarray = np.zeros(size)
-        self.sprite_group: Group[Block] = Group()
+        self.sprite_group: pygame.sprite.Group[Block] = pygame.sprite.Group()
         self.sprite_dict: dict[tuple[int,int], Block] = {}
 
     def draw(self):
@@ -237,13 +48,12 @@ class Layer:
             self.remove(index)
 
         new_block = block.copy()
-        new_block.position = Vector2((x, y)) * PIXEL
+        new_block.position = pygame.math.Vector2((x, y)) * PIXEL
 
         self.sprite_group.add(new_block)
         self.sprite_dict.update({index: new_block})
         self.indices[index[0]][index[1]] = new_block.id
         camera.screen_update = True
-        # print(f'Successfully draw \'{block.name}\' in {index}')
 
     def remove(self, index):
         """
@@ -257,17 +67,35 @@ class Layer:
             self.sprite_group.remove(existence_block)
             camera.screen_update = True
 
-            # print(f'Successfully remove \'{existence_block.name}\' at {index}')
+    def load(self, file_path: FilePath):
+        data = np.genfromtxt(file_path, delimiter = ',', skip_header = 1)[:, 1:].astype(np.int8)
+
+        if not data.shape == self.indices.shape:
+            raise IndexError(f'World size \'{data.shape}\' does not match current layer {self.indices.shape}!')
+
+        for x in range(data.shape[0]):
+            for y in range(data.shape[1]):
+                if data[x][y] == 0:
+                    continue
+                block = block_dict[data[x][y]].copy()
+                block.position = pygame.math.Vector2((x, y)) * PIXEL
+                index = (x, y)
+                self.indices[x][y] = block.id
+                self.sprite_group.add(block)
+                self.sprite_dict.update({index: block})
 
 
 class WorldEditor:
     def __init__(self, world_size:tuple[int, int]):
         self.__world_size: tuple[int, int] = world_size
-        self.__base_world_index: np.ndarray = np.zeros(world_size)
-
+        self.__base_world_index: np.ndarray = np.zeros(world_size).astype(np.int8)
+        self.rect: pygame.Rect = pygame.Rect((0, 0), (world_size[0] * PIXEL, world_size[1] * PIXEL))
         self.background_layer: Layer = Layer(world_size)
 
-    def GetCurrentWorldIndex(self, mouse_position: Vector2) -> (tuple[int, int] | tuple[None, None]):
+        self.grid_visible: bool = True
+        self.rect_visible: bool = True
+
+    def GetCurrentWorldIndex(self, mouse_position: pygame.math.Vector2) -> (tuple[int, int] | tuple[None, None]):
         """
         Return to the world index where the mouse's position is at.
 
@@ -284,14 +112,23 @@ class WorldEditor:
         """
         Display world grid.
         """
+        if not self.grid_visible:
+            return
+
         x_line = np.linspace(0, self.__world_size[0], self.__world_size[0] + 1)
         y_line = np.linspace(0, self.__world_size[1], self.__world_size[1] + 1)
         for x in x_line:
-            pygame.draw.line(camera.screen, GRID_COLOR, WorldToScreenCoordinate((x * PIXEL, y_line[0]) * PIXEL),
+            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x * PIXEL, y_line[0]) * PIXEL),
                              WorldToScreenCoordinate((x * PIXEL, y_line[-1] * PIXEL)))
         for y in y_line:
-            pygame.draw.line(camera.screen, GRID_COLOR, WorldToScreenCoordinate((x_line[0] * PIXEL, y* PIXEL)),
+            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x_line[0] * PIXEL, y* PIXEL)),
                              WorldToScreenCoordinate((x_line[-1] * PIXEL, y * PIXEL)))
+
+    def draw_rect(self):
+        if not self.rect_visible:
+            return
+
+        pygame.draw.rect(camera.screen, "YELLOW", self.rect, 4)
 
     def draw_layer(self):
         """
@@ -299,6 +136,42 @@ class WorldEditor:
         """
         self.background_layer.draw()
 
+    def key_input(self, event: pygame.event):
+        if event.key == pygame.K_g:
+            self.grid_visible = not self.grid_visible
+            camera.screen_update = True
+        elif event.key == pygame.K_m:
+            self.rect_visible = not self.rect_visible
+            camera.screen_update = True
 
-camera = Camera()
+
+    def update(self):
+        self.rect.topleft = WorldToScreenCoordinate((0, 0))
+        self.rect.w = self.__world_size[0] * PIXEL * camera.scale
+        self.rect.h = self.__world_size[1] * PIXEL * camera.scale
+
+    def save(self):
+        data: np.ndarray = self.background_layer.indices.astype(np.int8)
+        DF = pd.DataFrame(data)
+        DF.to_csv('Data/Save/world_editor_save1.csv')
+
+        print('Successfully saved.')
+
+    def load(self, file_path: FilePath):
+        self.background_layer.load(file_path)
+
+
+class DebugTool:
+    def __init__(self):
+        self.text: str = ""
+
+    def event_update(self, event):
+        self.text = str(event)
+
+    def log(self):
+        text_surface = font.render(self.text, False, DEBUG_LOG_STYLE_COLOR)
+        text_rect = text_surface.get_rect(center=(SCREEN_SIZE[0] // 2,SCREEN_SIZE[1] // 1.5))
+        camera.screen.blit(text_surface, text_rect)
+
+debug = DebugTool()
 world_editor = WorldEditor(WORLD_SIZE)

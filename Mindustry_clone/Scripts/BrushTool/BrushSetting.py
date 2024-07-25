@@ -1,9 +1,6 @@
-import pygame
-import numpy as np
-from pygame.math import Vector2
-from Mindustry_clone.Scripts.Engine.Editor import Block, Layer, camera, world_editor
+from Mindustry_clone.Scripts.Engine.Editor import *
 
-def bucket_fill(arr: np.ndarray, index: tuple[int, int]) -> list[tuple[int, int]]:
+def _bucket_fill(arr: np.ndarray, index: tuple[int, int]) -> list[tuple[int, int]]:
     """
     Bucket filling algorithm.
 
@@ -128,7 +125,7 @@ class BrushTool:
                     index_list.append(i)
         return index_list
 
-    def __pen_draw(self, layer: Layer, mouse_position: Vector2):
+    def __pen_draw(self, layer: Layer, mouse_position: pygame.math.Vector2):
         """
         Draw block on the layer.
 
@@ -147,7 +144,7 @@ class BrushTool:
             for i in indices:
                 layer.add(i, self.block_current)
 
-    def __pen_erase(self, layer: Layer, mouse_position: Vector2):
+    def __pen_erase(self, layer: Layer, mouse_position: pygame.math.Vector2):
         """
         Remove data on the layer.
 
@@ -171,27 +168,27 @@ class BrushTool:
 
         if event.key == pygame.K_1:
             self.__pen_head_size = 1
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_2:
             self.__pen_head_size = 2
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_3:
             self.__pen_head_size = 3
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_4:
             self.__pen_head_size = 4
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_5:
             self.__pen_head_size = 5
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_6:
             self.__pen_head_size = 6
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
         elif event.key == pygame.K_7:
             self.__pen_head_size = 7
-            print(f'Pen head size: {self.__pen_head_size}')
+            debug.event_update(f'Pen head size: {self.__pen_head_size}')
 
-    def __fill(self, layer: Layer, mouse_position: Vector2):
+    def __fill(self, layer: Layer, mouse_position: pygame.math.Vector2):
         """
         Bucket filling area on the layer.
 
@@ -202,7 +199,7 @@ class BrushTool:
         if index == (None, None):
             return
 
-        indices = bucket_fill(layer.indices, index)
+        indices = _bucket_fill(layer.indices, index)
         if self.block_current is None:
             for i in indices:
                 layer.remove(i)
@@ -210,7 +207,7 @@ class BrushTool:
             for i in indices:
                 layer.add(i, self.block_current)
 
-    def __copy_block(self, layer: Layer, mouse_position: Vector2):
+    def __copy_block(self, layer: Layer, mouse_position: pygame.math.Vector2):
         """
         Copying the current index block on the layer.
 
@@ -223,14 +220,14 @@ class BrushTool:
 
         if layer.indices[index[0]][index[1]] == 0:
             self.block_current = None
-            print('Copied \'None\'')
+            debug.event_update('Copied \'None\'')
         else:
             # Copy current block data
             block = layer.sprite_dict[index]
             self.block_current = block
-            print(f'Copied \'{block.name}\'')
+            debug.event_update(f'Copied \'{block.name}\'')
 
-        print(f'Change brush: \'pen\'')
+        debug.event_update(f'Change brush: \'pen\'')
         self.is_holding_copy_brush = False
 
     def __change_brush_type(self):
@@ -241,7 +238,7 @@ class BrushTool:
             self.brush_current = 'pen'
             camera.screen_update = True
 
-    def paint(self, layer: Layer, mouse_position: Vector2):
+    def paint(self, layer: Layer, mouse_position: pygame.math.Vector2):
         """
         Paint block on the layer corresponds to brush type.
 
