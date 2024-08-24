@@ -1,4 +1,6 @@
-from Mindustry_clone.Scripts.Engine.Editor import *
+import pygame.event
+
+from Scripts.Engine.Editor import *
 
 def _bucket_fill(arr: np.ndarray, index: tuple[int, int]) -> list[tuple[int, int]]:
     """
@@ -97,69 +99,66 @@ class BrushTool:
         self.__pen_list = [pen1, pen2, pen3, pen4, pen5, pen6]
         self.__pen_head_size: int = 1
 
+        self.index_selected: tuple[int, int] | None = None
         self.brush_current: str = ""
-        self.block_current: Block = None
+        self.block_current: Block | None = None
 
         # Handle on-off the brush copy
         self.is_holding_copy_brush: bool = False
 
-    def __get_pen_index_area(self, index: tuple[int, int]) -> list[tuple[int, int]]:
+    def __get_pen_index_circle_area(self, index_center: tuple[int, int]) -> list[tuple[int, int]]:
         """
         Return a list of indices area corresponds to its current pen size.
-        This method will automatically remove negative indices and keep only positive.
+        This method automatically remove negative indices
 
-        :param index: An index where it will be the center of pen size
+        :param index_center: center point of index
         :return: An area of the list of indices where the pen brush has filled
         """
         if self.__pen_head_size == 1:
-            return [index]
+            return [index_center]
 
         __pen_head_size = self.__pen_list[self.__pen_head_size - 2]
         index_list = []
         for x in range(__pen_head_size.shape[0]):
             for y in range(__pen_head_size.shape[1]):
                 if __pen_head_size[x][y]:
-                    i = (y - __pen_head_size.shape[0] // 2 + index[0], x - __pen_head_size.shape[1] // 2 + index[1])
+                    i = (y - __pen_head_size.shape[0] // 2 + index_center[0], x - __pen_head_size.shape[1] // 2 + index_center[1])
                     if i[0] < 0 or i[1] < 0:
                         continue
                     index_list.append(i)
         return index_list
 
-    def __pen_draw(self, layer: Layer, mouse_position: pygame.math.Vector2):
+    def __pen_draw(self, layer: Layer):
         """
         Draw block on the layer.
 
         :param layer: Current layer
-        :param mouse_position: Mouse position
         """
-        index = world_editor.GetCurrentWorldIndex(mouse_position)
-        if index == (None, None):
+        if self.index_selected == (None, None):
             return
 
-        indices = self.__get_pen_index_area(index)
+        index_list = self.__get_pen_index_circle_area(self.index_selected)
         if self.block_current is None:
-            for i in indices:
+            for i in index_list:
                 layer.remove(i)
         else:
-            for i in indices:
+            for i in index_list:
                 layer.add(i, self.block_current)
 
-    def __pen_erase(self, layer: Layer, mouse_position: pygame.math.Vector2):
+    def __pen_erase(self, layer: Layer):
         """
         Remove data on the layer.
 
         :param layer: Current layer
-        :param mouse_position: Mouse position
         """
-        index = world_editor.GetCurrentWorldIndex(mouse_position)
-        if index == (None, None):
+        if self.index_selected == (None, None):
             return
 
-        indices = self.__get_pen_index_area(index)
-        for i in indices:
+        index_list = self.__get_pen_index_circle_area(self.index_selected)
+        for i in index_list:
             layer.remove(i)
 
-    def change_pen_head_size(self, event: pygame.event):
+    def change_pen_head_size(self, event: pygame.event.Event):
         """
         Hotkeys change pen head size. Change 'pen' and 'erase' brush size.
         """
@@ -169,61 +168,64 @@ class BrushTool:
         if event.key == pygame.K_1:
             self.__pen_head_size = 1
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_2:
             self.__pen_head_size = 2
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_3:
             self.__pen_head_size = 3
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_4:
             self.__pen_head_size = 4
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_5:
             self.__pen_head_size = 5
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_6:
             self.__pen_head_size = 6
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
         elif event.key == pygame.K_7:
             self.__pen_head_size = 7
             debug.event_update(f'Pen head size: {self.__pen_head_size}')
+            camera.screen_update = True
 
-    def __fill(self, layer: Layer, mouse_position: pygame.math.Vector2):
+    def __fill(self, layer: Layer):
         """
         Bucket filling area on the layer.
 
         :param layer: Current layer
-        :param mouse_position: Mouse position
         """
-        index = world_editor.GetCurrentWorldIndex(mouse_position)
-        if index == (None, None):
+        if self.index_selected == (None, None):
             return
 
-        indices = _bucket_fill(layer.indices, index)
+        index_list = _bucket_fill(layer.index_position, self.index_selected)
         if self.block_current is None:
-            for i in indices:
+            for i in index_list:
                 layer.remove(i)
         else:
-            for i in indices:
+            for i in index_list:
                 layer.add(i, self.block_current)
 
-    def __copy_block(self, layer: Layer, mouse_position: pygame.math.Vector2):
+    def __copy_block(self, layer: Layer):
         """
         Copying the current index block on the layer.
 
         :param layer: Current layer
-        :param mouse_position: Mouse position
         """
-        index = world_editor.GetCurrentWorldIndex(mouse_position)
-        if index == (None, None):
+        if self.index_selected == (None, None):
             return
 
-        if layer.indices[index[0]][index[1]] == 0:
+        if layer.index_position[self.index_selected[0]][self.index_selected[1]] == 0:
             self.block_current = None
             debug.event_update('Copied \'None\'')
         else:
             # Copy current block data
-            block = layer.sprite_dict[index]
+            block = layer.sprite_dict[self.index_selected]
             self.block_current = block
             debug.event_update(f'Copied \'{block.name}\'')
 
@@ -238,24 +240,23 @@ class BrushTool:
             self.brush_current = 'pen'
             camera.screen_update = True
 
-    def paint(self, layer: Layer, mouse_position: pygame.math.Vector2):
+    def paint(self, layer: Layer):
         """
         Paint block on the layer corresponds to brush type.
 
         :param layer: Current layer
-        :param mouse_position: Mouse position
         """
         mouses = pygame.mouse.get_pressed()
         if mouses[0]:
             if self.brush_current == 'pen':
-                self.__pen_draw(layer, mouse_position)
+                self.__pen_draw(layer)
             elif self.brush_current == 'erase':
-                self.__pen_erase(layer, mouse_position)
+                self.__pen_erase(layer)
             elif self.brush_current == 'fill':
-                self.__fill(layer, mouse_position)
+                self.__fill(layer)
             elif self.brush_current == 'copy':
                 if self.is_holding_copy_brush:
-                    self.__copy_block(layer, mouse_position)
+                    self.__copy_block(layer)
         else:
             if self.brush_current == 'copy':
                 self.__change_brush_type()

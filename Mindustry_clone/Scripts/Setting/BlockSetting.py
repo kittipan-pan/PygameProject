@@ -1,11 +1,11 @@
-from Mindustry_clone.Scripts.Engine.CameraScreen import *
+from Scripts.Engine.CameraScreen import *
 
 class Block(pygame.sprite.Sprite):
     def __init__(self, image_source: FilePath = ""):
         super().__init__()
         self.image_source: str = image_source
         self.name: str = ""
-        self.id: int = None
+        self.id: int = 0
 
         if not len(self.image_source):
             self.original_image: pygame.Surface = pygame.image.load('Images/NOT_FOUND.png').convert_alpha()
@@ -39,13 +39,10 @@ class Block(pygame.sprite.Sprite):
         self.visible = True
         self.rect.topleft = WorldToScreenCoordinate(self.position)
 
-        if self.rect.left < camera.screen.get_rect().left:
+        # On-Off block visibility
+        if self.rect.x < camera.fake_screen.left - PIXEL * camera.scale or self.rect.x > camera.fake_screen.right:
             self.visible = False
-        elif self.rect.right > camera.screen.get_rect().right:
-            self.visible = False
-        if self.rect.top < camera.screen.get_rect().top:
-            self.visible = False
-        elif self.rect.bottom > camera.screen.get_rect().bottom:
+        if self.rect.y < camera.fake_screen.top - PIXEL * camera.scale or self.rect.y > camera.fake_screen.bottom:
             self.visible = False
 
 Grass = Block('Images/Block_Images/Grass_001.png')
