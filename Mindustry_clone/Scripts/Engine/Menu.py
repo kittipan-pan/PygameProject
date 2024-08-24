@@ -1,4 +1,6 @@
-from Mindustry_clone.Scripts.BrushTool.BrushSetting import *
+import pygame
+
+from Scripts.BrushTool.BrushSetting import *
 
 class Button(pygame.sprite.Sprite):
     def __init__(self, size: tuple[int, int], position: tuple[int, int],
@@ -33,7 +35,7 @@ class Button(pygame.sprite.Sprite):
 class Menu:
     def __init__(self, table: tuple[int, int], cell_size: int):
         self.button_group: pygame.sprite.Group[Button] = pygame.sprite.Group()
-        self.button_index_dict: dict[tuple[int, int], Button] = {}
+        self.button_index_dict: dict[int, Button] = {}
 
         i: int = 1
         for y in range(table[1]):
@@ -127,6 +129,7 @@ class Menu:
                              f'The total amount of button values is {len(self.button_index_dict)}, but got \'{len(image_source_list)}\'.')
 
         button: Button
+        image_source: PathLike
         for index, image_source in enumerate(image_source_list):
             if image_source == "":
                 continue
@@ -197,7 +200,11 @@ class BrushMenu(Menu):
     def custom_draw(self):
         self.draw()
 
-        selected_brush_button_rect = self.brush_rect_dict[brush_tool.brush_current]
+        if self.visible:
+            selected_brush_button_rect = self.brush_rect_dict[brush_tool.brush_current]
+        else:
+            selected_brush_button_rect = pygame.Rect((0, 0), (0, 0))
+
         pygame.draw.rect(camera.screen, BUTTON_SELECTED_COLOR, selected_brush_button_rect, BUTTON_SELECTED_COLOR_THICKNESS)
 
 
@@ -248,10 +255,11 @@ class BlockMenu(Menu):
     def custom_draw(self):
         self.draw()
 
-        if isinstance(brush_tool.block_current, Block):
+        if isinstance(brush_tool.block_current, Block) and self.visible:
             selected_block_button_rect = self.block_rect_dict[brush_tool.block_current.name]
         else:
             selected_block_button_rect = pygame.Rect((0, 0), (0, 0))
+
         pygame.draw.rect(camera.screen, BUTTON_SELECTED_COLOR, selected_block_button_rect, BUTTON_SELECTED_COLOR_THICKNESS // 2)
 
 # Menu Tabs
