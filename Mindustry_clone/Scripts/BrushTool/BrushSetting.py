@@ -1,4 +1,4 @@
-from Mindustry_clone.Scripts.Engine.Editor import *
+from Scripts.Engine.Editor import *
 
 def _bucket_fill(arr: np.ndarray, index: tuple[int, int]) -> list[tuple[int, int]]:
     """
@@ -98,7 +98,7 @@ class BrushTool:
         self.__pen_head_size: int = 1
 
         self.brush_current: str = ""
-        self.block_current: Block = None
+        self.block_current: [Block | None] = None
 
         # Handle on-off the brush copy
         self.is_holding_copy_brush: bool = False
@@ -199,7 +199,7 @@ class BrushTool:
         if index == (None, None):
             return
 
-        indices = _bucket_fill(layer.indices, index)
+        indices = _bucket_fill(layer.index_position, index)
         if self.block_current is None:
             for i in indices:
                 layer.remove(i)
@@ -218,7 +218,7 @@ class BrushTool:
         if index == (None, None):
             return
 
-        if layer.indices[index[0]][index[1]] == 0:
+        if layer.index_position[index[0]][index[1]] == 0:
             self.block_current = None
             debug.event_update('Copied \'None\'')
         else:

@@ -1,10 +1,6 @@
-from Mindustry_clone.Scripts.Setting.game_setting import *
-import pygame
+from Scripts.Setting.GameSetting import *
 
-pygame.init()
-font = pygame.font.Font(FONT, 30)
-
-def WorldToScreenCoordinate(world_position: pygame.math.Vector2) -> pygame.math.Vector2:
+def WorldToScreenCoordinate(world_position: pygame.math.Vector2 | tuple[int, int]) -> pygame.math.Vector2:
     """
     Convert world space --> screen space.
 
@@ -15,7 +11,7 @@ def WorldToScreenCoordinate(world_position: pygame.math.Vector2) -> pygame.math.
     screen_y = (world_position[1] - camera.offset.y) * camera.scale
     return pygame.math.Vector2((int(screen_x), int(screen_y)))
 
-def ScreenToWorldCoordinate(mouse_position: pygame.math.Vector2) -> pygame.math.Vector2:
+def ScreenToWorldCoordinate(mouse_position: pygame.math.Vector2 | tuple[int, int]) -> pygame.math.Vector2:
     """
     Convert screen space --> world space.
 
@@ -24,7 +20,7 @@ def ScreenToWorldCoordinate(mouse_position: pygame.math.Vector2) -> pygame.math.
     """
     world_x = mouse_position[0] / camera.scale + camera.offset.x
     world_y = mouse_position[1] / camera.scale + camera.offset.y
-    return pygame.math.Vector2((world_x, world_y))
+    return pygame.math.Vector2((int(world_x), int(world_y)))
 
 class Camera:
     def __init__(self):
@@ -45,7 +41,10 @@ class Camera:
 
         self.panning_border_visible: bool = True
 
-    def editor_movement(self, mouse_position: pygame.math.Vector2):
+        # TO TEST OBJECT VISIBILITY ON SCREEN
+        self.fake_screen: pygame.Rect = self.panning_border
+
+    def movement(self, mouse_position: pygame.math.Vector2):
         """
         Camera screen panning and zoom. Self-update its offset and scale.
         :param mouse_position: Mouse position
@@ -130,40 +129,6 @@ class Camera:
             self.__direction.y = 0
         self.offset += self.__direction * KEY_PANNING_SPEED // self.scale
 
-    def player_movement(self, world_rect: pygame.Rect):
-        keys = pygame.key.get_pressed()
-
-        # Key pressed panning
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.__direction.x = -1
-            self.screen_update = True
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.__direction.x = 1
-            self.screen_update = True
-        else:
-            self.__direction.x = 0
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.__direction.y = -1
-            self.screen_update = True
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.__direction.y = 1
-            self.screen_update = True
-        else:
-            self.__direction.y = 0
-
-        dx, dy = self.__direction
-        if camera.screen.get_rect().left + dx < world_rect.left:
-            self.__direction.x = 0
-        elif camera.screen.get_rect().right + dx > world_rect.right:
-            self.__direction.x = 0
-        if camera.screen.get_rect().top + dy < world_rect.top:
-            self.__direction.y = 0
-        elif camera.screen.get_rect().bottom + dy > world_rect.bottom:
-            self.__direction.y = 0
-
-        self.offset += self.__direction * KEY_PANNING_SPEED
-
     def draw_panning_border(self):
         """
         Display mouse panning border.
@@ -171,9 +136,9 @@ class Camera:
         if not self.panning_border_visible:
             return
 
-        pygame.draw.rect(self.screen, CAMERA_PANNING_BORDER_COLOR, self.panning_border, 5)
+        pygame.draw.rect(self.screen, CAMERA_PANNING_BORDER_COLOR, self.panning_border, CAMERA_PANNING_BORDER_THICKNESS)
 
-    def key_input(self, event):
+    def key_input(self, event: pygame.event.Event):
         if event.key == pygame.K_TAB:
             self.panning_border_visible = not self.panning_border_visible
             self.screen_update = True

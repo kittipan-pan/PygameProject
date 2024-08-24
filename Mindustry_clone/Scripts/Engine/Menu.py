@@ -1,4 +1,4 @@
-from Mindustry_clone.Scripts.BrushTool.BrushSetting import *
+from Scripts.BrushTool.BrushSetting import *
 
 class Button(pygame.sprite.Sprite):
     def __init__(self, size: tuple[int, int], position: tuple[int, int],
@@ -33,7 +33,7 @@ class Button(pygame.sprite.Sprite):
 class Menu:
     def __init__(self, table: tuple[int, int], cell_size: int):
         self.button_group: pygame.sprite.Group[Button] = pygame.sprite.Group()
-        self.button_index_dict: dict[tuple[int, int], Button] = {}
+        self.button_index_dict: dict[int, Button] = {}
 
         i: int = 1
         for y in range(table[1]):
@@ -127,6 +127,7 @@ class Menu:
                              f'The total amount of button values is {len(self.button_index_dict)}, but got \'{len(image_source_list)}\'.')
 
         button: Button
+        image_source: PathLike
         for index, image_source in enumerate(image_source_list):
             if image_source == "":
                 continue

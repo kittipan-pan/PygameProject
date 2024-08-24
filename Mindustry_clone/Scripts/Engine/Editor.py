@@ -1,10 +1,10 @@
-from Mindustry_clone.Scripts.Setting.BlockSetting import *
+from Scripts.Setting.BlockSetting import *
 import numpy as np
 import pandas as pd
 
 class Layer:
     def __init__(self, size: tuple[int, int]):
-        self.indices: np.ndarray = np.zeros(size)
+        self.index_position: np.ndarray = np.zeros(size)
         self.sprite_group: pygame.sprite.Group[Block] = pygame.sprite.Group()
         self.sprite_dict: dict[tuple[int,int], Block] = {}
 
@@ -37,11 +37,11 @@ class Layer:
 
         x, y = index
         # Return if the index is out of range.
-        if (x < 0 or x > self.indices.shape[0] - 1) or (y < 0 or y > self.indices.shape[1] - 1):
+        if (x < 0 or x > self.index_position.shape[0] - 1) or (y < 0 or y > self.index_position.shape[1] - 1):
             return
 
         # Return if it already has the same block in the index
-        if self.indices[x][y] == block.id:
+        if self.index_position[x][y] == block.id:
             return
         else:
             # Remove previous index data
@@ -52,7 +52,7 @@ class Layer:
 
         self.sprite_group.add(new_block)
         self.sprite_dict.update({index: new_block})
-        self.indices[index[0]][index[1]] = new_block.id
+        self.index_position[index[0]][index[1]] = new_block.id
         camera.screen_update = True
 
     def remove(self, index):
@@ -63,24 +63,26 @@ class Layer:
         """
         if index in self.sprite_dict:
             existence_block = self.sprite_dict.pop(index)
-            self.indices[index[0]][index[1]] = 0
+            self.index_position[index[0]][index[1]] = 0
             self.sprite_group.remove(existence_block)
             camera.screen_update = True
 
     def load(self, file_path: FilePath):
-        data = np.genfromtxt(file_path, delimiter = ',', skip_header = 1)[:, 1:].astype(np.int8)
+        data = np.genfromtxt(file_path, delimiter = ',', skip_header = 1)[:, 1:]
 
-        if not data.shape == self.indices.shape:
-            raise IndexError(f'World size \'{data.shape}\' does not match current layer {self.indices.shape}!')
+        if not data.shape == self.index_position.shape:
+            raise IndexError(f'World size \'{data.shape}\' does not match current layer {self.index_position.shape}!')
 
         for x in range(data.shape[0]):
             for y in range(data.shape[1]):
-                if data[x][y] == 0:
+                data_index_current = data[x][y]
+                if data_index_current == 0:
                     continue
-                block = block_dict[data[x][y]].copy()
-                block.position = pygame.math.Vector2((x, y)) * PIXEL
+
                 index = (x, y)
-                self.indices[x][y] = block.id
+                block = block_dict[data_index_current].copy()
+                block.position = pygame.math.Vector2(index) * PIXEL
+                self.index_position[x][y] = block.id
                 self.sprite_group.add(block)
                 self.sprite_dict.update({index: block})
 
@@ -108,35 +110,41 @@ class WorldEditor:
             return None, None
         return int(x), int(y)
 
-    def draw_grid(self):
+    def __draw_grid(self):
         """
         Display world grid.
         """
         if not self.grid_visible:
             return
 
-        x_line = np.linspace(0, self.__world_size[0], self.__world_size[0] + 1)
-        y_line = np.linspace(0, self.__world_size[1], self.__world_size[1] + 1)
+        x_line = list(np.linspace(0, self.__world_size[0], self.__world_size[0] + 1))
+        y_line = list(np.linspace(0, self.__world_size[1], self.__world_size[1] + 1))
         for x in x_line:
-            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x * PIXEL, y_line[0]) * PIXEL),
+            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x * PIXEL, y_line[0] * PIXEL)),
                              WorldToScreenCoordinate((x * PIXEL, y_line[-1] * PIXEL)))
         for y in y_line:
-            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x_line[0] * PIXEL, y* PIXEL)),
+            pygame.draw.line(camera.screen, WORLD_GRID_COLOR, WorldToScreenCoordinate((x_line[0] * PIXEL, y * PIXEL)),
                              WorldToScreenCoordinate((x_line[-1] * PIXEL, y * PIXEL)))
 
-    def draw_rect(self):
+    def __draw_rect(self):
         if not self.rect_visible:
             return
 
         pygame.draw.rect(camera.screen, "YELLOW", self.rect, 4)
 
-    def draw_layer(self):
+    def __draw_terrain_layer(self):
         """
-        Display layer.
+        Draw terrain layers.
         """
         self.background_layer.draw()
 
-    def key_input(self, event: pygame.event):
+    def draw(self):
+        camera.screen.fill((0, 0, 0))
+        self.__draw_terrain_layer()
+        self.__draw_grid()
+        self.__draw_rect()
+
+    def key_input(self, event: pygame.event.Event):
         if event.key == pygame.K_g:
             self.grid_visible = not self.grid_visible
             camera.screen_update = True
@@ -144,14 +152,13 @@ class WorldEditor:
             self.rect_visible = not self.rect_visible
             camera.screen_update = True
 
-
     def update(self):
         self.rect.topleft = WorldToScreenCoordinate((0, 0))
         self.rect.w = self.__world_size[0] * PIXEL * camera.scale
         self.rect.h = self.__world_size[1] * PIXEL * camera.scale
 
     def save(self):
-        data: np.ndarray = self.background_layer.indices.astype(np.int8)
+        data: np.ndarray = self.background_layer.index_position.astype(np.int8)
         DF = pd.DataFrame(data)
         DF.to_csv('Data/Save/world_editor_save1.csv')
 
@@ -161,7 +168,7 @@ class WorldEditor:
         self.background_layer.load(file_path)
 
 
-class DebugTool:
+class DebuggingTool:
     def __init__(self):
         self.text: str = ""
 
@@ -169,9 +176,9 @@ class DebugTool:
         self.text = str(event)
 
     def log(self):
-        text_surface = font.render(self.text, False, DEBUG_LOG_STYLE_COLOR)
+        text_surface = font.render(self.text, False, DEBUG_LOG_FONT_STYLE_COLOR)
         text_rect = text_surface.get_rect(center=(SCREEN_SIZE[0] // 2,SCREEN_SIZE[1] // 1.5))
         camera.screen.blit(text_surface, text_rect)
 
-debug = DebugTool()
+debug = DebuggingTool()
 world_editor = WorldEditor(WORLD_SIZE)

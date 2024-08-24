@@ -1,7 +1,4 @@
-from Mindustry_clone.Scripts.Engine.Menu import *
-
-FPS: int = 60
-clock: pygame.time.Clock = pygame.time.Clock()
+from Scripts.Engine.Menu import *
 
 world_editor.load('Data/Save/world_editor_save1.csv')
 
@@ -11,17 +8,12 @@ class WorldEditorScreen:
 
     def handle_draw(self):
         if camera.screen_update:
-            world_editor.update()
-            camera.screen.fill((0, 0, 0))
-            world_editor.draw_layer()
-            world_editor.draw_grid()
-            world_editor.draw_rect()
+            world_editor.draw()
             brush_menu.custom_draw()
             block_menu.custom_draw()
-            debug.log()
-            camera.draw_panning_border()
             pygame.display.update()
-
+        camera.draw_panning_border()
+        debug.log()
         camera.screen_update = False
 
     def handle_event(self, mouse_position):
@@ -59,14 +51,16 @@ class WorldEditorScreen:
                     brush_menu.toggle_tab()
                     block_menu.toggle_tab()
 
-        camera.editor_movement(mouse_position)
+        camera.movement(mouse_position)
 
         if not mouse_on_menu_tabs(mouse_position):
             brush_tool.paint(world_editor.background_layer, mouse_position)
 
+        world_editor.update()
+
     def run(self):
         # Start frame
-        # Avoid move camera offset
+        # Avoid moving camera-offset in the start frame
         mouse_position = pygame.math.Vector2((camera.screen.get_size()[0] // 2, camera.screen.get_size()[1] // 2))
 
         # Update frame
